@@ -72,10 +72,14 @@ Cloudflare 注意事项：记录一律以 DNS-only（proxied=false）创建；TT
 
 ```bash
 BUNSYNC_URL=http://127.0.0.1:8000/sync BUNSYNC_TOKEN=xxx \
-  ./pocketbase serve --dir=./pb_data --hooksDir=./pb_hooks
+  ./pocketbase serve --dir=/srv/pocketgate/pb_data --hooksDir=/srv/pocketgate/pb_hooks
 ```
 
-> **坑（v0.23 实测）**：hook 回调运行在池化 JS 运行时里，闭包和顶层函数/常量在回调内**不可见**（报 `ReferenceError`），且回调内抛错会把记录请求变成 400（记录实际已写入）。所以 `dns_sync.pb.js` 里每个回调都是完全自包含的，改动时不要提取公共函数。另外 collection 若没有 `created` 字段，`findRecordsByFilter` 不要用 `-created` 排序。
+> **坑（v0.23 实测）**：
+> 1. hook 回调运行在池化 JS 运行时里，闭包和顶层函数/常量在回调内**不可见**（报 `ReferenceError`），且回调内抛错会把记录请求变成 400（记录实际已写入）。所以 `dns_sync.pb.js` 里每个回调都是完全自包含的，改动时不要提取公共函数。
+> 2. collection 若没有 `created` 字段，`findRecordsByFilter` 不要用 `-created` 排序。
+> 3. `pb_data` 默认按**二进制所在目录**解析而非 cwd——`superuser upsert` 与 `serve` 务必都显式传 `--dir`，否则超管会写进另一个库、认证永远失败（已踩）。
+> 4. collections 建好之前，cron 兜底任务每 5 分钟报一条 `sql: no rows in result set` ERROR 日志，属正常噪音，建表后消失。
 
 ## 安全须知
 
