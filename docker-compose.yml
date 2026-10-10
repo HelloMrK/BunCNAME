@@ -1,0 +1,52 @@
+# PocketGate local stack: PocketBase (desired state) → PocketGate sync service
+# → Cloudflare/AdGuard DNS. The gateway/inner Nginx (LuaJIT dynamic reverse
+# proxy) services of the full architecture are intentionally NOT here yet;
+# they land in the next iteration (see README "Roadmap").
+#
+# Copy .env.example to .env and fill in credentials before `docker compose up -d`.
+
+services:
+  buncname:
+    build: .
+    image: pocketgate-sync:local
+    restart: unless-stopped
+    environment:
+      - SYNC_TOKEN=${SYNC_TOKEN}
+      - MANAGED_TYPES=${MANAGED_TYPES:-CNAME}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      - PORKBUN_API_KEY=${PORKBUN_API_KEY:-}
+      - PORKBUN_SECRET_KEY=${PORKBUN_SECRET_KEY:-}
+      - ADGUARD_HOME_URL=${ADGUARD_HOME_URL:-}
+      - ADGUARD_HOME_USERNAME=${ADGUARD_HOME_USERNAME:-}
+      - ADGUARD_HOME_PASSWORD=${ADGUARD_HOME_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8000:8000"   # keep off the network unless you really need it
+
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    restart: unless-stopped
+    environment:
+      - BUNSYNC_URL=http://buncname:8000/sync
+      - BUNSYNC_TOKEN=${SYNC_TOKEN}
+      # CHUNK_SIZE=5MB
+    volumes:
+      - ./pb_data:/pb_data
+      - ./pb_hooks:/pb_hooks
+    ports:
+      - "127.0.0.1:8090:8090"
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    restart: unless-stopped
+    volumes:
+      - adguard_work:/opt/adguardhome/work
+      - adguard_conf:/opt/adguardhome/conf
+    ports:
+      - "127.0.0.1:3000:3000"   # initial setup / admin UI
+      # DNS listeners, enable as needed:
+      # - "53:53/udp"
+      # - "53:53/tcp"
+
+volumes:
+  adguard_work:
+  adguard_conf:

@@ -40,7 +40,6 @@ pip-delete-this-directory.txt
 htmlcov/
 .tox/
 .nox/
-tests/
 .coverage
 .coverage.*
 .cache
@@ -209,3 +208,6 @@ __marimo__/
 
 #VS Code settings
 .vscode/
+
+# PocketBase runtime data
+/pb_data/
